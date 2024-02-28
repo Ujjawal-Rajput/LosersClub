@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/x-icon" href="../static/project-images/favicon.jpg">
+    <title>LosersClub</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #333; 
+            color: #fff; 
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+        }
+
+        .login-container {
+            width: 40%;
+            background-color: #444; 
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+        }
+
+        .login-header {
+            text-align: center;
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        .input-group label {
+            display: block;
+            font-size: 16px;
+            margin-bottom: 8px;
+        }
+
+        .input-group input {
+            width: 90%;
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #555;
+            border-radius: 5px;
+            background-color: #666; 
+            color: #fff; 
+        }
+
+        .login-btn {
+            width: 100%;
+            padding: 10px;
+            font-size: 18px;
+            border: none;
+            border-radius: 5px;
+            background-color: #28a745; 
+            color: #fff; 
+            cursor: pointer;
+        }
+
+        .login-btn:hover {
+            background-color: #218838; 
+        }
+
+        @media only screen and (max-width: 600px) {
+            .login-container {
+                width: 80%;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- this is the admin login form -->
+    <div class="login-container">
+        <div class="login-header">Login</div>
+        <form id="login-form">
+            <div class="input-group">
+                <label for="username">Username:</label>
+                <input type="text" id="username" name="username" required>
+            </div>
+
+            <div class="input-group">
+                <label for="password">Password:</label>
+                <input type="password" id="password" name="password" required>
+            </div>
+
+            <p>* If you don't know these credentials then go to line number 142 of main.py file.</p>
+            <button type="submit" class="login-btn">Login</button>
+        </form>
+    </div>
+</body>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        document.getElementById('login-form').addEventListener('submit', function(event) {
+            event.preventDefault(); // Prevent the default form submission
+
+            // Get the form data
+            var formData = new FormData(this);
+
+            // Make an AJAX request
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', '/login', true);
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4) {
+                    if (xhr.status === 200) {
+                        // Successful response from the server
+                        var response = JSON.parse(xhr.responseText);
+
+                        if (response.success) {
+                            // Redirect or perform any other action upon successful login
+                            window.location.href = "/";
+                        } else {
+                            // Display error message
+                            alert('Login failed. ' + response["msg"]);
+                        }
+                    } else {
+                        // Handle server error
+                        alert('Error communicating with the server.');
+                    }
+                }
+            };
+
+            // Send the request for admin login.
+            xhr.send(formData);
+        });
+    });
+</script>
+</html>

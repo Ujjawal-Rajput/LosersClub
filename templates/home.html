@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LosersClub</title>
+    <link rel="icon" type="image/x-icon" href="../static/project-images/favicon.jpg">
+    <link rel="stylesheet" href="../static/css/style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"
+        integrity="sha512-q/dWJ3kcmjBLU4Qc47E4A9kTB4m3wuTY7vkFJDTZKjTs8jhyGQnaUrxa0Ytd0ssMZhbNua9hE+E7Qv1j+DyZwA=="
+        crossorigin="anonymous"></script>
+</head>
+
+<body>
+    <!-- room page -->
+    <div class="container">
+        <p style="font-size: 13px;">If you are the admin of this project >> 
+            {% if isLogin %}
+                <a href="/logout">Logout</a>
+            {% else %}
+                <a href="/login">Login</a>
+            {% endif %}
+        
+        </p>
+        <div class="top">
+            <h2>Room : {{room_name}}</h2>
+            <div class="main_options">
+                <button class="chat_button" id='room_chat'>Live Chat</button>
+                <span>{{members}}</span>
+                <a href="/room/logout"><button class="delete_button" id='room_logout'>Exit</button></a>
+            </div>
+        </div>
+
+        <form id="upload-form" enctype="multipart/form-data">
+            <label for="post_data">Write post context :</label>
+            <textarea id="post_data" name="post_data" rows="4" placeholder="Enter something..." required></textarea>
+
+            <label for="image">Image:</label>
+            <input type="file" id="image" name="image" accept="image/*" required>
+
+            <button type="submit" id="upload_button" class="upload_button">Upload Post</button>
+
+            <h4>Important : </h4>
+            <!-- <p>* Upload something that you don't want to forget.</p> -->
+            <p>* Don't upload vulger.</p>
+            <p>* Admin(Ujjawal) can delete posts.</p>
+        </form>
+        <button class="upload_button" id='refresh'>Refresh posts</button>
+
+        <div class="loader" id="loader"></div>
+
+        <ul class="posts" id="posts-list">
+            <!-- Previous posts will be added here dynamically using JavaScript -->
+        </ul>
+    </div>
+
+    <!-- ================================================================================================================================== -->
+    <!-- socket chat section -->
+    <div class="message-box">
+        <div class="chat_header">
+            <h2>Chat Section :)</h2>
+            <button class="close_button" id='close_chat'>x</button>
+        </div>
+        <div class="messages" id="messages"></div>
+        <div class="inputs">
+            <input type="text" rows="3" placeholder="Message" name="message" id="message" />
+            <button type="button" name="send" id="send-btn">Send</button>
+        </div>
+    </div>
+    <!-- ================================================================================================================================== -->
+
+
+
+</body>
+<script>
+        var uploadForm = document.getElementById('upload-form');
+        var postsList = document.getElementById('posts-list');
+        var room_logout = document.getElementById('room_logout');
+        const loader = document.getElementById("loader");
+
+        const loadPosts = async () => {
+            loader.style.display = "block";
+            await fetch("/fetch_posts")
+                .then((res) => res.json())
+                .then((res) => {
+                    // console.log(res["data"])
+                    // console.log(res["login"])
+                    renderPosts(res["data"], res["login"]);
+                })
+        };
+        loadPosts();
+        document.getElementById('refresh').addEventListener('click', () => {
+            loadPosts();
+        })
+
+
+        uploadForm.addEventListener('submit', function (event) {
+            event.preventDefault();
+            loader.style.display = "block";
+            document.getElementById('upload_button').disabled = true;
+            // postsList.innerHTML = '';
+
+            var formData = new FormData(this);
+
+            fetch('/upload', {
+                method: 'POST',
+                body: formData,
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        let msg = document.createElement('p');
+                        msg.innerHTML = `<p style="color:lightgreen">Success : ${data.msg}</p>`;
+                        uploadForm.appendChild(msg);
+                        // Reload the posts list
+                        loadPosts();
+                        // Clear the form
+                        uploadForm.reset();
+                        document.getElementById('upload_button').disabled = false;
+
+                        setTimeout(() => {
+                            uploadForm.removeChild(msg)
+                        }, 2000);
+                    } else {
+                        alert('Upload failed. ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error communicating with the server.');
+                });
+        });
+
+
+        function renderPosts(posts, islogin) {
+            postsList.innerHTML = '';
+            // console.log(posts)
+            if (posts.length === 0) {
+                postsList.innerHTML = '<center><p style="color:gray;">No posts available, upload one</p></center>';
+            } else {
+                posts.reverse().forEach(post => {
+                    let li = document.createElement('li');
+                    li.className = 'post';
+
+                    if (post[0]) {
+                        let img = document.createElement('img');
+                        img.src = '/static/img/' + post[0];
+                        li.appendChild(img);
+                    }
+
+                    // var span = document.createElement('span');
+                    // span.className = 'date';
+                    // span.textContent = "Uploaded at : " + post[2];
+                    span = `<br><span class="date">Uploaded at : ${post[2]}</span>`;
+                    li.innerHTML += span;
+
+                    let p = document.createElement('p');
+                    p.textContent = post[3] +" : " + post[1];
+                    li.appendChild(p);
+
+                    // let like = document.createElement('button');
+                    // like.className = 'like_button';
+                    // like.innerHTML = `<img src="../static/project-images/like.png">`;
+                    // like.setAttribute("post_like", post[0]);
+                    // li.appendChild(like);
+
+                    if (islogin) {
+                        let button = document.createElement('button');
+                        button.className = 'delete_button';
+                        button.innerText = "Delete";
+                        li.appendChild(button);
+
+                        button.addEventListener("click", async () => {
+                            // li.appendChild(loader);
+                            button.innerText = "Deleting...";
+                            await fetch("/delete", {
+                                method: 'POST',
+                                headers: {
+                                    "Content-Type": "application/json"
+                                },
+                                body: JSON.stringify({ 'post': post[0] }),
+                            }).then((res) => res.json())
+                                .then((res) => {
+                                    if (res.success) {
+                                        loadPosts();
+                                    }
+                                    else {
+                                        console.log("nope");
+                                    }
+                                })
+                        })
+                    }
+                    postsList.appendChild(li);
+                });
+            }
+            loader.style.display = "none";
+        }
+
+
+
+
+        // ==============================================================================================================
+        document.querySelector('#room_chat').addEventListener('click',()=>{
+            document.querySelector('.message-box').style.display="flex";
+            document.querySelector('body').style.overflowY="hidden";
+        });
+        
+        document.querySelector('#close_chat').addEventListener('click',()=>{
+            document.querySelector('.message-box').style.display="none";
+            document.querySelector('body').style.overflowY="auto";
+        });
+
+
+        var socketio = io();
+        const messages = document.getElementById("messages");
+
+        let username = "{{ user_name }}";
+        let createMessage = (name, msg) => {
+                const content = `
+                    <div class="text">
+                        <span>
+                            <strong style="${(username === name) ? 'color: orange;' : 'color: #fff;'}">${name}</strong>: ${msg}
+                        </span>
+                        <span class="muted">
+                            ${new Date().toLocaleString()}
+                        </span>
+                    </div>
+                `;
+            messages.innerHTML += content;
+        };
+
+        socketio.on("message", (data) => {
+            createMessage(data.name, data.message);
+        });
+
+        document.getElementById('send-btn').addEventListener('click',() => {
+            const message = document.getElementById("message");
+            if (message.value == "") return;
+            socketio.emit("message", { data: message.value });
+            message.value = "";
+        });
+        // =====================================================================================================================
+
+
+
+
+</script>
+
+<!-- to render previous messages to the page using javascript -->
+{% for msg in messages %}
+<script type="text/javascript">
+    createMessage("{{msg.name}}", "{{msg.message}}");
+</script>
+{% endfor %}
+
+
+</html>

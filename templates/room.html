@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/x-icon" href="../static/project-images/favicon.jpg">
+    <title>LosersClub</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #333;
+            color: #fff; 
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+        }
+
+        .login-container {
+            width: 40%;
+            background-color: #444; 
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+        }
+
+        .login-header {
+            text-align: center;
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        .input-group label {
+            display: block;
+            font-size: 16px;
+            margin-bottom: 8px;
+        }
+
+        .input-group input {
+            width: 90%;
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #555;
+            border-radius: 5px;
+            background-color: #666; 
+            color: #fff; 
+        }
+
+        .login-btn {
+            width: 100%;
+            padding: 10px;
+            font-size: 18px;
+            border: none;
+            border-radius: 5px;
+            background-color: #28a745;
+            color: #fff; 
+            cursor: pointer;
+        }
+
+        .login-btn:hover {
+            background-color: #218838; 
+        }
+
+        a{
+            text-decoration: none;
+            color: steelblue;
+        }
+
+        @media only screen and (max-width: 600px) {
+            .login-container {
+                width: 80%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <form id="login-enter-form">
+            <div class="login-header">Join Room</div>
+            <div class="input-group">
+                <label for="name">Name</label>
+                <input type="text" id="name" name="name" required>
+            </div>
+
+            <div class="input-group">
+                <label for="code">Code</label>
+                <input type="password" id="code" name="code" required>
+            </div>
+            
+            <button type="submit" class="login-btn">Join</button>
+            <a href="#" id="create">Create room ?</a>
+        </form>
+
+
+        
+
+
+        <form id="login-create-form" style="display: none;">
+            <div class="login-header">Create Room</div>
+
+            <div class="input-group">
+                <label for="name">Name:</label>
+                <input type="text" id="croom" placeholder="Pick a name!" name="name" required>
+            </div>
+
+            <button type="submit" class="login-btn">Create</button>
+            <br>
+            <a href="#" id="enter">Join room ?</a>
+        </form>
+    </div>
+</body>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        let a_enter = document.querySelector('#enter');
+        let a_create = document.querySelector('#create');
+
+        a_create.addEventListener("click",()=>{
+            document.getElementById('login-enter-form').style.display="none";
+            document.getElementById('login-create-form').style.display="block";
+        })
+        a_enter.addEventListener("click",()=>{
+            document.getElementById('login-enter-form').style.display="block";
+            document.getElementById('login-create-form').style.display="none";
+        })
+
+        document.getElementById('login-enter-form').addEventListener('submit', function(event) {
+            event.preventDefault(); 
+            // Get the form data
+            let formData = new FormData(this);
+            let xhr = new XMLHttpRequest();
+            xhr.open('POST', '/room', true);
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4) {
+                    if (xhr.status === 200) {
+                        // Successful response from the server
+                        let response = JSON.parse(xhr.responseText);
+
+                        if (response.success) {
+                            window.location.href = "/home";
+                        } else {
+                            // Display error message
+                            alert('Login failed. ' + response["msg"]);
+                        }
+                    } else {
+                        alert('Error communicating with the server.');
+                    }
+                }
+            };
+            xhr.send(formData);
+        });
+
+
+
+        document.getElementById('login-create-form').addEventListener('submit', function(event) {
+            event.preventDefault(); 
+            // Get the form data
+            let formData = new FormData(this);
+
+            // Make an AJAX request
+            let xhr = new XMLHttpRequest();
+            xhr.open('POST', '/room/create', true);
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4) {
+                    if (xhr.status === 200) {
+                        // Successful response from the server
+                        let response = JSON.parse(xhr.responseText);
+
+                        if (response.success) {
+                            // Redirect to a page 
+                            window.location.href = "/home";
+                        } else {
+                            alert('Login failed. ' + response["msg"]);
+                        }
+                    } else {
+                        alert('Error communicating with the server.');
+                    }
+                }
+            };
+
+            xhr.send(formData);
+        });
+    });
+</script>
+</html>
