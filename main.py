@@ -302,5 +302,5 @@ def disconnect():
 
 
 if __name__ == "__main__":
-    # app.run(debug=True) #use this to run on 127.0.0.1
-    app.run(host="192.168.1.4",debug=True) #use this to access application on network, don't forget to change host from your ip address.
+    app.run(debug=True) #use this to run on 127.0.0.1
+    #app.run(host="192.168.1.4",debug=True) #use this to access application on network, don't forget to change host from your ip address.
