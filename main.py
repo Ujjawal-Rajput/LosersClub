@@ -17,9 +17,13 @@ Session(app)
 # Path to the static/img folder
 img_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'img')
 
+from dotenv import load_dotenv, find_dotenv
+load_dotenv(find_dotenv())
+password = os.environ.get("MONGODB_PASSWORD")
+
 #use below 3 lines for mongodb cloud database (mongodb atlas)
 # don't worry these are the credentials of my temporary account that's why i haven't added them into env variables.
-client = pymongo.MongoClient("mongodb+srv://tegeyep442:tegeyep442@cluster0.pkmvwjl.mongodb.net/")
+client = pymongo.MongoClient(f"mongodb+srv://tegeyep442:{password}@cluster0.pkmvwjl.mongodb.net/")
 db = client['losersclub'] #database name is losersclub
 rooms = db['room'] #table name is room
 
