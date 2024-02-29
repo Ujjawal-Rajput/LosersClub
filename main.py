@@ -22,7 +22,6 @@ load_dotenv(find_dotenv())
 password = os.environ.get("MONGODB_PASSWORD")
 
 #use below 3 lines for mongodb cloud database (mongodb atlas)
-# don't worry these are the credentials of my temporary account that's why i haven't added them into env variables.
 client = pymongo.MongoClient(f"mongodb+srv://tegeyep442:{password}@cluster0.pkmvwjl.mongodb.net/")
 db = client['losersclub'] #database name is losersclub
 rooms = db['room'] #table name is room
