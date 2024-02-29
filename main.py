@@ -1,22 +1,27 @@
 #room & chat functionality is added in this project
-import os,pickle
 from flask import Flask,render_template, request,url_for,redirect,session,g,make_response,jsonify
+import os
+import pymongo
 from werkzeug.utils import secure_filename
 from flask_session import Session
 from datetime import datetime 
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired
-import time
-import os
 import shutil
-
 
 app=Flask(__name__)
 s = URLSafeTimedSerializer('secret!')
-app.config['SECRET_KEY'] = 'secret'
+app.config['SECRET_KEY'] = 'myveryverysecretkey!'
 app.config['SESSION_TYPE'] = 'filesystem'
 Session(app)
+
 # Path to the static/img folder
 img_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'img')
+
+#use below 3 lines for mongodb cloud database (mongodb atlas)
+# don't worry these are the credentials of my temporary account that's why i haven't added them into env variables.
+client = pymongo.MongoClient("mongodb+srv://tegeyep442:tegeyep442@cluster0.pkmvwjl.mongodb.net/")
+db = client['losersclub'] #database name is losersclub
+rooms = db['room'] #table name is room
 
 
 #===============================================================
@@ -27,16 +32,8 @@ from string import ascii_uppercase
 socketio = SocketIO(app)
 #===============================================================
 
-# if no data in file , create one
-file1=open("losers.dat","ab+")
-if file1.tell()<=0:
-    Record={}
-    with open('losers.dat','wb') as file2:
-        pickle.dump(Record,file2)
-        file2.close()
-file1.close()
 
-# this function set the global user, if user is in the session
+# this function set the global users, if user is in the session
 @app.before_request
 def before_request():
     g.user=None
@@ -49,24 +46,20 @@ def before_request():
     if 'name' in session:
         g.name=session["name"]
 
-def read_Record():
-    file=open("losers.dat","rb")
-    Record=pickle.load(file)
-    file.close()
-    return Record
 
-# generate a unique code for room created
+# generate a unique code for the created room 
 def generate_unique_code(length):
     while True:
         code = ""
         for _ in range(length):
             code += random.choice(ascii_uppercase)
         
-        Record = read_Record()
-        if code not in Record:
+        Record = rooms.find_one({"room":code})
+        if Record is None:
             break
     return code
 
+# initial page when comes on website
 @app.get("/")
 def room_get():
     if g.room:
@@ -80,27 +73,24 @@ def room_enter_post():
     name = request.form.get('name')
     room = request.form.get('code')
 
-    Record=read_Record()
-    if Record.get(room):
+    Record=rooms.find_one({"room":room})
+    if Record:
         session["room"]=room
         session["name"]=name
         return jsonify({'success': True})
-    return jsonify({'success': False, 'msg': 'Invalid room name or password'})
+    return jsonify({'success': False, 'msg': 'Invalid room code'})
 
 # it create a room and joins simultaneously
 @app.post('/room/create')
 def room_create_post():
     name = request.form.get('name')
     room = generate_unique_code(4)
-    Record=read_Record()
-    if Record.get(room) is None:
-        with open('losers.dat','wb') as file2:
-            Record[room]=[[],{'members': 0, 'messages': []}] # initial schema when user create a room.
-            pickle.dump(Record,file2)
-            file2.close()
+    Record = rooms.find_one({"room": room})
+
+    if not Record:
+        rooms.insert_one({'room': room,'posts':[],'members': 0, 'messages': []}) # initial schema when user create a room.
         session["room"]=room
         session["name"]=name
-        print(Record)
         return jsonify({'success': True})
     else:
         return jsonify({'success': False, 'msg': 'room already exists / something went wrong'})
@@ -108,21 +98,24 @@ def room_create_post():
 # it displays the page inside room
 @app.route("/home")
 def home():
-    if g.room:
-        file=open("losers.dat","rb")
-        try:
-            Record=pickle.load(file)
-        except:
-            return "something went wrong !! Go back."
-        file.close()
-        print(Record,g.room)
-        data = Record[g.room][1]
+    if g.room:       
+        data = rooms.find_one({"room":g.room})
+        if not data:
+            return redirect(url_for('room_logout'))
         
-        if g.user:
-            login=True
-        else:
-            login=False 
-        return render_template("home.html",isLogin =login,user_name=g.name,room_name=g.room,members=data["members"], messages=data["messages"])
+        # if g.user:
+        #     login=True
+        # else:
+        #     login=False 
+        login = True if g.user else False
+            
+        return render_template("home.html",
+                               isLogin =login,
+                               user_name=g.name,
+                               room_name=g.room,
+                               members=data["members"],
+                               messages=data["messages"])
+
     else:
         return redirect(url_for('room_get'))
 
@@ -167,15 +160,14 @@ def room_logout():
 # fetch the posts and send to AJAX for loading posts without reloading the page
 @app.get("/fetch_posts")
 def fetch_posts():
-    file2=open("losers.dat","rb")
-    Record=pickle.load(file2)
+    Record=rooms.find_one({"room":g.room})
     if g.user:
         login=True
     else:
         login=False
-
-    if Record.get(session['room'])!=None:
-        return jsonify({"login":login,"data":Record.get(session['room'])[0]})
+    # print(Record)
+    if Record:
+        return jsonify({"login":login,"data":Record['posts']})
     else:
         return jsonify({"login":login,"data":[]})
     
@@ -195,12 +187,15 @@ def upload_post():
         filename = os.path.join(img_folder, unique_filename)
         image_file.save(filename)
 
-        Record=read_Record()
-        # print(Record)
-        Record.get(session['room'])[0].append([unique_filename,post_data,datetime.now().strftime('%m/%d/%Y hour:%H min:%M'),g.name])
-        with open('losers.dat','wb') as file2:
-            pickle.dump(Record,file2)
-        time.sleep(1)
+        new_post = {"filename":unique_filename,
+                    "caption":post_data,
+                    "time":datetime.now().strftime('%m/%d/%Y hour:%H min:%M'),
+                    "user":g.name}
+        
+        rooms.update_one({"room":g.room},
+                         {"$push":{"posts":new_post}})
+
+        # time.sleep(1)
         return jsonify({'success': True, 'msg': 'Post uploaded successfully'})
     else:
         return jsonify({'success': False, 'msg': 'Post not uploaded'})
@@ -209,18 +204,17 @@ def upload_post():
 # to delete the post and remove the data from file
 @app.route('/delete', methods=['POST'])
 def delete_post():
-    data = request.json 
-    post_to_delete = data.get('post')
+    data = request.json
+    post_to_delete = {"filename": data.get('post')}
     if post_to_delete:
-        Record=read_Record()
-        Record.get(session['room'])[0] = [post for post in Record.get(session['room'])[0] if post[0] != post_to_delete]
-        with open('losers.dat','wb') as file2:
-            pickle.dump(Record,file2)
+        rooms.update_one(
+            {"room": g.room},
+            {"$pull": {"posts": post_to_delete}}
+        )
 
         source_folder = "static/img"
         destination_folder = "static/deleted"
-        image_filename =  post_to_delete
-
+        image_filename =  data.get('post')
         move_image(source_folder, destination_folder, image_filename)
 
         return jsonify({'success': True, 'msg': 'Post deleted successfully'})
@@ -232,7 +226,6 @@ def delete_post():
 def move_image(source_folder, destination_folder, image_filename):
     source_path = os.path.join(source_folder, image_filename)
     destination_path = os.path.join(destination_folder, image_filename)
-
     try:
         # cut and paste the image file using shutil
         shutil.move(source_path, destination_path)
@@ -250,9 +243,9 @@ def move_image(source_folder, destination_folder, image_filename):
 @socketio.on("message")
 def message(data):
     room = session.get('room')
-    
-    Record=read_Record()
-    if room not in Record:
+    Record=rooms.find_one({"room":room})
+
+    if Record is None:
         return 
     
     content = {
@@ -261,10 +254,8 @@ def message(data):
     }
     
     send(content, to=room)
-    Record[room][1]["messages"].append(content)
-
-    with open('losers.dat','wb') as file:
-        pickle.dump(Record,file)
+    rooms.update_one({"room":room},
+                         {"$push":{"messages":content}})
     print(f"{session.get('name')} said: {data['data']}")
 
 
@@ -273,19 +264,19 @@ def message(data):
 def connect(auth):
     room = session.get('room')
     name = session.get('name') 
+
     if not room or not name:
         return
-    Record = read_Record()
-    if room not in Record:
+    Record = rooms.find_one({"room":room})
+    if Record is None:
         leave_room(room)
         return
     
     join_room(room)
     send({"name": name, "message": "has entered the room"}, to=room)
 
-    Record[room][1]["members"] += 1
-    with open('losers.dat','wb') as file:
-        pickle.dump(Record,file)
+    rooms.update_one({"room":room},
+                    {"$inc":{"members":1}})
     print(f"{name} joined room {room}")
 
 
@@ -296,15 +287,11 @@ def disconnect():
     name = session.get('name')
     leave_room(room)
 
-    Record = read_Record()
-    if room in Record:
-        Record[room][1]["members"] -= 1
-        # uncomment if we want to delete the room if no member is there.
-        # if Record[room][1]["members"] <= 0:
-        #     del Record[room]
-    
-    with open('losers.dat','wb') as file:
-        pickle.dump(Record,file)
+    Record = rooms.find_one({"room":room})
+    if Record:
+        rooms.update_one({"room":room},
+                        {"$inc":{"members": -1}})
+        
     send({"name": name, "message": "has left the room"}, to=room)
     print(f"{name} has left the room {room}")
 
@@ -312,5 +299,5 @@ def disconnect():
 
 
 if __name__ == "__main__":
-    socketio.run(app)
-    # app.run(host="192.168.1.6",debug=True)
+    app.run(host="192.168.1.4",debug=True) #use this to access application on network, don't forget to change host from your ip address.
+    # app.run(debug=True) #use this to 

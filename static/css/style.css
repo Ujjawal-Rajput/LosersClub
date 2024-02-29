@@ -312,12 +312,9 @@ a{
     color: orange;
 }
 
+
 /* ============================================================================================================================ */
 @media only screen and (max-width: 768px) {
-    body {
-        /* height: 100%; */
-        /* overflow-y: hidden; */
-     }
      .main_options{
         display: flex;
         flex-direction: row;

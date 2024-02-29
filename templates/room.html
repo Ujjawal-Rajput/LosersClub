@@ -13,6 +13,7 @@
             background-color: #333;
             color: #fff; 
             display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
             height: 100vh;
@@ -73,48 +74,67 @@
             color: steelblue;
         }
 
+        footer{
+            height: 50px;
+            color: #fff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        footer span{
+            color: green;
+        }
         @media only screen and (max-width: 600px) {
             .login-container {
                 width: 80%;
             }
         }
+
     </style>
 </head>
 <body>
     <div class="login-container">
+
+        <!-- form to Join room -->
         <form id="login-enter-form">
-            <div class="login-header">Join Room</div>
+            <div class="login-header">Join a Room</div>
             <div class="input-group">
                 <label for="name">Name</label>
-                <input type="text" id="name" name="name" required>
+                <input type="text" id="name" placeholder="Pick a name!" name="name" required>
             </div>
 
             <div class="input-group">
-                <label for="code">Code</label>
-                <input type="password" id="code" name="code" required>
+                <label for="code">Room Code</label>
+                <input type="password" id="code" placeholder="Valid room code" name="code" required>
             </div>
             
             <button type="submit" class="login-btn">Join</button>
-            <a href="#" id="create">Create room ?</a>
+            <br><br>
+            <a id="create">Create room ?</a>
         </form>
 
 
         
 
-
+        <!-- form to create room -->
         <form id="login-create-form" style="display: none;">
-            <div class="login-header">Create Room</div>
+            <div class="login-header">Create a Room</div>
 
             <div class="input-group">
-                <label for="name">Name:</label>
+                <label for="name">Name</label>
                 <input type="text" id="croom" placeholder="Pick a name!" name="name" required>
             </div>
 
             <button type="submit" class="login-btn">Create</button>
-            <br>
-            <a href="#" id="enter">Join room ?</a>
+            <br><br>
+            <a id="enter">Join room ?</a>
         </form>
+
     </div>
+
+    <footer>
+        <p> &hearts; Made by <span>Ujjawal</span></p>
+    </footer>
 </body>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
@@ -131,21 +151,20 @@
         })
 
         document.getElementById('login-enter-form').addEventListener('submit', function(event) {
-            event.preventDefault(); 
-            // Get the form data
+            event.preventDefault();
+
             let formData = new FormData(this);
+
             let xhr = new XMLHttpRequest();
             xhr.open('POST', '/room', true);
             xhr.onreadystatechange = function() {
                 if (xhr.readyState === 4) {
                     if (xhr.status === 200) {
-                        // Successful response from the server
                         let response = JSON.parse(xhr.responseText);
 
                         if (response.success) {
                             window.location.href = "/home";
                         } else {
-                            // Display error message
                             alert('Login failed. ' + response["msg"]);
                         }
                     } else {
@@ -160,10 +179,8 @@
 
         document.getElementById('login-create-form').addEventListener('submit', function(event) {
             event.preventDefault(); 
-            // Get the form data
             let formData = new FormData(this);
 
-            // Make an AJAX request
             let xhr = new XMLHttpRequest();
             xhr.open('POST', '/room/create', true);
             xhr.onreadystatechange = function() {
@@ -173,7 +190,6 @@
                         let response = JSON.parse(xhr.responseText);
 
                         if (response.success) {
-                            // Redirect to a page 
                             window.location.href = "/home";
                         } else {
                             alert('Login failed. ' + response["msg"]);
